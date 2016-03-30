@@ -87,6 +87,7 @@ class RADDCore(object):
         else:
             self.indx = list(data.idx.unique())
 
+
     def set_fitparams(self, ntrials=10000, tol=1.e-5, maxfev=5000, niter=500, disp=True, prob=np.array([.1, .3, .5, .7, .9]), get_params=False, **kwgs):
 
         if not hasattr(self, 'fitparams'):
@@ -100,6 +101,7 @@ class RADDCore(object):
                           'rt_cix': self.rt_cix, 'data_style': self.data_style, 'labels': self.labels}
         if get_params:
             return self.fitparams
+
 
     def set_basinparams(self, nrand_inits=2, interval=10, niter=40, stepsize=.05, nsuccess=20, is_flat=True, method='TNC', btol=1.e-3, maxiter=20, get_params=False, bdisp=False):
 
@@ -142,18 +144,20 @@ class RADDCore(object):
 
         return popt
 
+
     def rangl_data(self, data, kind='dpm', prob=np.array([.1, .3, .5, .7, .9])):
         """ wrapper for analyze.rangl_data
         """
-        rangled = analyze.rangl_data(
-            data, data_style=self.data_style, kind=kind, prob=prob, tb=self.tb)
+        rangled = analyze.rangl_data(data, data_style=self.data_style, kind=kind, prob=prob, tb=self.tb)
         return rangled
+
 
     def resample_data(self, data):
         """ wrapper for analyze.resample_data
         """
         resampled = analyze.resample_data(data, n=100, data_style=self.data_style, tb=self.tb, kind=self.kind)
         return resampled
+
 
     def rt_quantiles(self, data, split_col='HL', prob=np.array([.1, .3, .5, .7, .9])):
         """ wrapper for analyze.rt_quantiles
@@ -163,11 +167,13 @@ class RADDCore(object):
         rtq = analyze.rt_quantiles(data, include_zero_rts=self.include_zero_rts, split_col=split_col, prob=prob, nrt_cond=self.nrt_cond, tb=self.tb)
         return rtq
 
+
     def assess_fit(self, finfo=None):
         """ wrapper for analyze.assess_fit calculates and stores
         rchi, AIC, BIC and other fit statistics
         """
         return analyze.assess_fit(finfo)
+
 
     def params_io(self, p={}, io='w', iostr='popt'):
         """ read // write parameters dictionaries
@@ -178,6 +184,7 @@ class RADDCore(object):
             ps = pd.read_csv(''.join([iostr, '.csv']), header=None)
             p = dict(zip(ps[0], ps[1]))
             return p
+
 
     def fits_io(self, fits=[], io='w', iostr='fits'):
         """ read // write y, wts, yhat arrays
@@ -195,6 +202,7 @@ class RADDCore(object):
         elif io == 'r':
             df = pd.read_csv(''.join([iostr, '.csv']), index_col=0)
             return df
+
 
     def __nudge_params__(self, p, lim=(.98, 1.02)):
         """
@@ -214,6 +222,7 @@ class RADDCore(object):
                 p[pkey] = p[pkey] * bump
         return p
 
+
     def slice_bounds_global(self, inits, pfit):
 
         b = theta.get_bounds(kind=self.kind, tb=self.fitparams['tb'])
@@ -231,6 +240,7 @@ class RADDCore(object):
         params = tuple([inits[pk] for pk in pfit])
 
         return pbounds, params
+
 
     def __make_dataframes__(self, qp_cols):
         """ Generates the following dataframes and arrays:
@@ -298,6 +308,7 @@ class RADDCore(object):
         fitinfo = pd.DataFrame(columns=self.infolabels, index=indx)
         self.dframes = {'data': self.data, 'flat_y': self.flat_y, 'avg_y': self.avg_y,                        'fitinfo': fitinfo, 'fits': fits, 'observed': self.observed, 'dat': dat}
 
+
     def __prep_basin_data__(self):
 
         fp = self.fitparams
@@ -319,6 +330,7 @@ class RADDCore(object):
             cond_data = self.avg_y
             cond_wts = self.avg_wts
         return cond_data, cond_wts
+
 
     def get_wts(self):
         """ wtc: weights applied to correct rt quantiles in cost f(x)
@@ -355,8 +367,10 @@ class RADDCore(object):
             self.flat_wts = np.hstack([nogo, quant])
         self.avg_wts, self.flat_wts = analyze.ensure_numerical_wts(self.avg_wts, self.flat_wts)
 
+
     def __remove_outliers__(self, sd=1.5, verbose=False):
         self.data = analyze.remove_outliers(self.data, sd=sd, verbose=verbose)
+
 
     def __get_header__(self, params=None, data_style='re', labels=[], prob=np.array([.1, .3, .5, .7, .9]), cond='Cond'):
         if not hasattr(self, 'delays'):
@@ -366,17 +380,21 @@ class RADDCore(object):
             self.infolabels = qp_cols[1]
         return qp_cols[0]
 
+
     def __get_default_inits__(self):
         self.inits = theta.get_default_inits(kind=self.kind, dynamic=self.dynamic, depends_on=self.depends_on)
+
 
     def __get_optimized_params__(self, include_ss=False, fit_noise=False):
         params = theta.get_optimized_params(kind=self.kind, dynamic=self.dynamic, depends_on=self.depends_on)
         return params
 
+
     def __check_inits__(self, inits=None, pro_ss=False, fit_noise=False):
         if inits is None:
             inits = dict(deepcopy(self.inits))
         self.inits = theta.check_inits(inits=inits, pdep=self.depends_on.keys(), kind=self.kind, pro_ss=pro_ss, fit_noise=fit_noise)
+
 
     def mean_pgo_rts(self, p={}, return_vals=True):
         """ Simulate proactive model and calculate mean RTs
@@ -396,9 +414,11 @@ class RADDCore(object):
         if return_vals:
             return self.pgo_rts
 
+
     def __make_proRT_conds__(self):
         self.data, self.rt_cix = analyze.make_proRT_conds(self.data, self.split)
         self.prort_conds_prepared = True
+
 
     def __rename_bad_cols__(self):
         self.data = analyze.rename_bad_cols(self.data)

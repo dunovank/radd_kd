@@ -8,23 +8,20 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from radd import vis
 from copy import deepcopy
 import matplotlib as mpl
-
+from IPython.display import display, Latex
 
 
 def plot_traces_rts(p, all_traces, rts, names=['A', 'B', 'C', 'D'], tb=1000):
 
     rtkeys = np.sort(rts.keys())
     rt_dists = [np.asarray(rts[k])*1e3-(np.mean(p['tr'])*1e3) for k in rtkeys]
-    tb = np.ceil(np.max([np.max(rti) for rti in rt_dists]))+100
+    tb = np.ceil(np.max([np.max(rti) if len(rti)>0 else 0 for rti in rt_dists]))+100
 
     sns.set(style='white', font_scale=1.2)
-    f, axes = vis.build_multi_axis(p, tb=tb)
+    f, axes = build_multi_axis(p, tb=tb)
     clrs = sns.color_palette('muted', 5)
-
-
 
     for i in xrange(len(all_traces)):
         for ii, ax in enumerate(axes.flatten()):
@@ -38,19 +35,19 @@ def plot_traces_rts(p, all_traces, rts, names=['A', 'B', 'C', 'D'], tb=1000):
             axx.spines[spine].set_visible(False)
         axx.set_xticklabels([])
         axx.set_yticklabels([])
-
+        if len(rt_dists[i])<=1:
+            continue
         sns.distplot(rt_dists[i], ax=axx, label=k, color=clrs[i])
         text_str='$\mu_{%s}=%.fms$'%(names[i], np.mean(rt_dists[i]))
         ax.text(x[0]-50, np.mean(p['a'])-.06, text_str, fontsize=15)
 
 
 def plot_summary(outcomes, titles=['Order of Choices','Number of Choices per Card', 'Change in Q(card)',
-    'Change in P(card)'], plot_traces=False, p=None, tb=1000):
+    'Change in P(card)', '$v^G_t$', '$v^N_t$'], plot_traces=False, p=None, tb=1000):
 
     sns.set_palette('muted')
-    f, axes = plt.subplots(2, 2, figsize=(14,10))
-    a1, a2, a3, a4 = axes.flatten()
-
+    f, axes = plt.subplots(3, 2, figsize=(14,16))
+    a1, a2, a3, a4, a5, a6 = axes.flatten()
     choices, rts, all_traces, qdict, choicep, vdhist, vihist = outcomes
 
     names = np.sort(qdict.keys())
@@ -66,10 +63,15 @@ def plot_summary(outcomes, titles=['Order of Choices','Number of Choices per Car
 
     for i, n in enumerate(names):
         a3.plot(np.array(qdict[n])*100, label=name_labels[i])
-        #a4.plot(choicep[n], label=name_labels[i])
-        a4.plot(vdhist[n]-vihist[n])
+        a4.plot(choicep[n], label=name_labels[i])
+        a5.plot(vdhist[n], label=name_labels[i])
+        a6.plot(vihist[n], label=name_labels[i])
+
     a3.legend(loc=0)
     a4.legend(loc=0)
+    a5.legend(loc=0)
+    a6.legend(loc=0)
+
     f.subplots_adjust(hspace=.35, wspace=.4)
 
     for i, ax in enumerate(axes.flatten()):
@@ -94,6 +96,7 @@ def get_avg_slope_trace(traces, nalt=4):
 
     return rise, run, slopes
 
+
 def gen_mappable(vals_to_map, cm='rainbow'):
 
     ncolors = len(vals_to_map)
@@ -110,34 +113,38 @@ def gen_mappable(vals_to_map, cm='rainbow'):
     return scalar_mappable, vmin, vmax
 
 
-def plot_reactivity_payoff(trialsdf, igtdf, cm='rainbow', save=False, savestr='reactivity_strategy_payoff'):
+def plot_reactivity_strategy(trialsdf, igtdf, cm='rainbow', save=False, pq='P'):
 
-    n = trialsdf.bgroup.unique().size
-    betas = trialsdf.beta.unique()
-    sm, vmin, vmax = gen_mappable(vals_to_map=betas, cm=cm)
+    if pq=='P':
+        measure = 'Payoff ("P")'
+    else:
+        measure = 'Sensitivity ("Q")'
+
+    n = trialsdf.agroup.unique().size
+    a_go = np.sort(trialsdf.a_go.unique())
+    sm, vmin, vmax = gen_mappable(vals_to_map=a_go, cm=cm)
 
     f, axes = plt.subplots(2,2, figsize=(14, 10))
     ax1, ax2, ax3, ax4 = axes.flatten()
 
-    for grp, grpdf in trialsdf.groupby('bgroup'):
-        colr = sm.to_rgba(betas[int(grp)])
-        #ax1.plot(grpdf.vd.values-grpdf.vi.values,color=sm.to_rgba(bvals[int(grp)]))
+    for grp, grpdf in trialsdf.groupby('agroup'):
+        colr = sm.to_rgba(a_go[int(grp)-1])
         ax1.plot(grpdf.vdiff.values, color=colr)
         ax2.plot(grpdf.v_opt_diff.values, color=colr)
         sns.despine()
 
-    divider = make_axes_locatable(ax2)
+    divider = make_axes_locatable(ax1)
     cax = divider.append_axes("right", size="5%", pad=0.2)
     cb = plt.colorbar(sm, cax)
     sm.colorbar.set_ticks([vmin, vmax])
     cax.set_yticklabels([vmin, vmax])
 
-    pvals_by_group = igtdf.groupby('bgroup').mean().loc[:, 'P'].values
-    reactivity = np.array([grpdf.vdiff.mean() for grp, grpdf in trialsdf.groupby('bgroup')])
-    strategy = np.array([grpdf.v_opt_diff.mean() for grp, grpdf in trialsdf.groupby('bgroup')])
+    pvals_by_group = igtdf.groupby('agroup').mean().loc[:, pq].values
+    reactivity = np.array([grpdf.vdiff.mean() for grp, grpdf in trialsdf.groupby('agroup')])
+    strategy = np.array([grpdf.v_opt_diff.mean() for grp, grpdf in trialsdf.groupby('agroup')])
 
     for i in range(n):
-        colr = sm.to_rgba(betas[i])
+        colr = sm.to_rgba(a_go[i])
         ax3.scatter(pvals_by_group[i], reactivity[i], color=colr, s=30)
         ax4.scatter(pvals_by_group[i], strategy[i], color=colr, s=30)
 
@@ -152,7 +159,35 @@ def plot_reactivity_payoff(trialsdf, igtdf, cm='rainbow', save=False, savestr='r
     for ax in [ax1, ax2]:
         ax.set_xlabel('Trials', fontsize=22)
     for ax in [ax3, ax4]:
-        ax.set_xlabel('Payoff', fontsize=22)
+        ax.set_xlabel(measure, fontsize=22)
     f.subplots_adjust(wspace=.4, hspace=.3)
     if save:
-        f.savefig('.'.join([savestr, 'png']), dpi=400)
+        f.savefig('.'.join(['reactivity_strategy_', measure, 'png']), dpi=400)
+
+
+def build_multi_axis(p, nresp=4, tb=1000):
+    bound = p['a']
+    onset = p['tr']
+    if hasattr(bound, '__iter__'):
+        bound = bound[0]
+        onset = onset[0]
+    # init figure, axes, properties
+    f, axes = plt.subplots(2, 2, figsize=(10, 5), sharex=True, sharey=True)
+    f.subplots_adjust(hspace=.1, top=.99, bottom=.05)
+    w = tb + 40
+    h = bound
+    start = onset - 80
+    axes=axes.flatten()
+    # c=["#e74c3c", '#27ae60', '#4168B7', '#8E44AD']
+    for i, ax in enumerate(axes):
+        plt.setp(ax, xlim=(start - 1, w + 1), ylim=(0 - (.01 * h), h + (.01 * h)))
+        ax.hlines(y=h, xmin=start, xmax=w, color='k')
+        ax.hlines(y=0, xmin=start, xmax=w, color='k')
+        ax.vlines(x=tb, ymin=0, ymax=h, color='#2043B0', lw=1.5, linestyle='-', alpha=.5)
+        ax.vlines(x=start + 2, ymin=0, ymax=h, color='k')
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.set_xticks([])
+        ax.set_yticks([])
+    sns.despine(top=True, right=True, bottom=True, left=True)
+    return f, axes

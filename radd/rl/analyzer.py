@@ -5,12 +5,11 @@ from numpy import array
 from numpy.random import sample as rs
 from numpy import newaxis as na
 import pandas as pd
-from radd.tools import vis
+from radd import vis
 from copy import deepcopy
 
 
 def igt_scores(choices):
-
     A=len(choices[choices==0])
     B=len(choices[choices==1])
     C=len(choices[choices==2])
@@ -19,7 +18,6 @@ def igt_scores(choices):
     P = (C+D) - (A+B)
     # sensitivity (Q) score
     Q = (B+D) - (A+C)
-
     return P, Q
 
 
@@ -42,7 +40,7 @@ def analyze_learning_dynamics(fd, broadcast=True):
     fd['vd'] = [vd_all.loc[i, choice] for choice in choice_vec]
     fd['vi'] = [vi_all.loc[i, choice] for choice in choice_vec]
     fd['vdiff'] = [vdiff_all.loc[i, choice] for choice in choice_vec]
-
+    fd['vdiff_all'] = [vdiff_all.loc[i, choice] for choice in choice_vec]
     vopt = vdiff_all['c'].values + vdiff_all['d'].values
     vsub = vdiff_all['a'].values + vdiff_all['b'].values
 
@@ -61,7 +59,6 @@ def analyze_learning_dynamics(fd, broadcast=True):
 
     return fd
 
-
 def format_dataframes(fd):
     from copy import deepcopy
     from collections import OrderedDict
@@ -69,8 +66,8 @@ def format_dataframes(fd):
                  'v_opt_diff', 'v_imp_diff', 'choice', 'rt', 'a_go', 'a_no', 'adiff', 'beta']
     nrows = len(fd['choices'])
     fdbroad = dict(deepcopy(fd))
-    for key in ['agroup', 'agent', 'a_go', 'a_no', 'adiff', 'beta']:
-        fdbroad[key] = [fd[key]]*nrows
+    #for key in ['agroup', 'agent', 'a_go', 'a_no', 'adiff', 'beta']:
+    #    fdbroad[key] = [fd[key]]*nrows
     # agdf_cols = ['agent', 'trial', 'agroup', 'bgroup', 'group', 'qval', 'vd', 'vi', 'vdiff',
     #              'v_opt_diff', 'v_imp_diff', 'choice', 'rt', 'a_go', 'a_no', 'adiff', 'beta']
     agdf = pd.DataFrame(OrderedDict((col, fdbroad[col]) for col in agdf_cols))
